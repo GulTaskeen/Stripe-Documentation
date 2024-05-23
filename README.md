@@ -1,27 +1,21 @@
 # Stripe-Documentation
 Steps and requirements to integrate Stripe in Flutter app
-<details open>
-  <summary><i>Click to read more/less...</i></summary>
-  
-- [ ] Description
-- [ ] Stripe APIs (connect-account, payment-intent) https://docs.stripe.com/api
-- [ ] Webhook events
 
 ## Prerequisites
 <details >
-  <summary><i>Click to read more/less...</i></summary>
+  <summary><i><sup><sub>Click to read more/less...</i></summary>
   
-> - ***Stripe Account :*** Create an account on [Stripe](https://dashboard.stripe.com/register) if you haven't already.
-> - ***Flutter SDK :*** Make sure you have Flutter installed.
-> - ***Node.js :*** Make sure you have Node.js installed. You can download it from [here](https://nodejs.org/en).
-> - ***Firebase Project :*** Create a project on Firebase.
+> ***Stripe Account :*** Create an account on [Stripe](https://dashboard.stripe.com/register) if you haven't already.  
+> ***Flutter SDK :*** Make sure you have Flutter installed.  
+> ***Node.js :*** Make sure you have Node.js installed. You can download it from [here](https://nodejs.org/en).  
+> ***Firebase Project :*** Create a project on Firebase.  
 </details>
 
 ## 1. Stripe Dashboard Setting
 
 ## 2. Dependencies in pubspec.yaml
 <details >
-  <summary><i>Click to read more/less...</i></summary>
+  <summary><i><sub><sub>Click to read more/less...</i></summary>
   
 add following packages with the latest compatible versions in your pubspec.yaml file
 - flutter_stripe:
@@ -32,7 +26,7 @@ add following packages with the latest compatible versions in your pubspec.yaml 
 
 ## 3. Firebase Integration
 <details >
-  <summary><i>Click to read more/less...</i></summary>
+  <summary><i><sup><sub>Click to read more/less...</i></summary>
   
 > - ***Firebase CLI :*** Install the Firebase CLI by running below command in your terminal.
 
@@ -44,11 +38,10 @@ add following packages with the latest compatible versions in your pubspec.yaml 
 
 
 </details>
-</details>
 
 ## 4. Set up Cloud Functions
 <details >
-  <summary><i>Click to read more/less...</i></summary>
+  <summary><i><sup><sub>Click to read more/less...</i></summary>
   
 - [Read this to get started with cloud functions](https://firebase.google.com/docs/functions/get-started?gen=2nd) follow to step 5
 
@@ -69,7 +62,7 @@ add following packages with the latest compatible versions in your pubspec.yaml 
   
 ### Service Account 
 <details >
-  <summary><i>Click to read more/less...</i></summary>
+  <summary><i><sup><sub>Click to read more/less...</i></summary>
   
 > service_key.json
 
@@ -78,7 +71,7 @@ Required to operate Cloud Functions for Firebase
 
 ### Cloud Function Code
 <details open>
-  <summary><i>Click to read more/less...</i></summary>
+  <summary><i><sup><sub>Click to read more/less...</i></summary>
 -
   
 > In `index.ts` file add below code:
@@ -118,74 +111,56 @@ Required to operate Cloud Functions for Firebase
             res.send('Missing parameters');
             return;
         }
-
-    const userId: string = req.query.userId as string,
-    const userName: string = req.query.userName as string,
-    const stripeAccountId = req.query.stripeAccountId,
-        let result;
-
-    try {
-        let account
-        if (!stripeAccountId) {
-            account = await stripe.accounts.create({
-                country: 'US',
-                type: 'custom',
-                business_type: 'individual',
-                individual: {
-                    first_name: userName,
-                    last_name: userName
-                },
-                business_profile: {
-                    mcc: '8999',
-                    url: 'https://techanion.com'
-                },
-                metadata: {
-                    // store any custom data associated with the account! as:
-                    // you can later use the Stripe API to retrieve the account and access this custom data
-                    // user_id: userId,
-                },
-                tos_acceptance: {
-                    date: Math.floor(Date.now() / 1000),
-                    ip: '192.168.20.20'
-                },
-                settings: {
-                    payouts: {
-                        schedule: {
-                            delay_days: 3,
-                            interval: 'daily',
-                        }
-                    }
-                },
-                capabilities: {
-                    card_payments: {
-                        requested: true
+        try {
+            const userId: string = req.query.userId as string,
+            const userName: string = req.query.userName as string,
+            const stripeAccountId = req.query.stripeAccountId,
+    
+            let account
+            if (!stripeAccountId) {
+                account = await stripe.accounts.create({
+                    country: 'US',
+                    type: 'custom',
+                    business_type: 'individual',
+                    individual: {
+                        first_name: userName,
+                        last_name: userName
                     },
-                    transfers: {
-                        requested: true
-                    }
-                }
+                    business_profile: {
+                        mcc: '8999',
+                        url: 'https://techanion.com'
+                    },
+                    metadata: {
+                        // store any custom data associated with the account! as:
+                        // you can later use the Stripe API to retrieve the account and access this custom data
+                        // user_id: userId,
+                    },
+                    tos_acceptance: {
+                        date: Math.floor(Date.now() / 1000),
+                        ip: '192.168.20.20'
+                    },
+                    settings: {
+                        payouts: {
+                            schedule: {delay_days: 3, interval: 'daily'}
+                        }
+                    },
+                    capabilities: {
+                        card_payments: {requested: true},
+                        transfers: {requested: true}
+                    },
+                })
+                userCollection.doc(userId).set({ stripeAccountId: account.id, verified: false }, { merge: true })
+            }
+            const accountLinks = await stripe.accountLinks.create({
+                account: stripeAccountId ?? account?.id ?? '',
+                refresh_url: 'https://www.techanion.com/refresh',
+                return_url: 'https://www.techanion.com/return',
+                type: stripeAccountId ? 'account_update' : 'account_onboarding'
             })
-            userCollection.doc(userId).set({ stripeAccountId: account.id, verified: false }, { merge: true })
-            console.log(account)
+            res.send(accountLinks).status(200)
+        } catch (e) {
+            res.send('Error').status(400);
         }
-        const accountLinks = await stripe.accountLinks.create({
-            account: stripeAccountId ?? account?.id ?? '',
-            refresh_url: 'https://www.techanion.com/refresh',
-            return_url: 'https://www.techanion.com/return',
-            type: stripeAccountId ? 'account_update' : 'account_onboarding'
-        })
-        console.log(accountLinks)
-        result = accountLinks;
-    } catch (e) {
-        console.log(e)
-        result = e;
-    }
-    if (result) {
-        console.log("check url", result);
-        res.send(result).status(200);
-    } else {
-        res.send('Error').status(400);
-    }
     }); 
 
     
@@ -200,7 +175,7 @@ Required to operate Cloud Functions for Firebase
 > you must navigate to the `functions` directory in terminal, before deploying the cloudFunctions
 
 <details >
-  <summary><i>Click to read more/less...</i></summary>
+  <summary><i><sup><sub>Click to read more/less...</i></summary>
 
 
 - Run one of the below commands in terminal to deploy:
